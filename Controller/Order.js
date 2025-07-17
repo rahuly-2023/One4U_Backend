@@ -1,3 +1,5 @@
+// backend/Controller/Order.js
+
 const jwt = require('jsonwebtoken');
 const Order = require('../Models/Order');
 
@@ -14,7 +16,7 @@ getOrders =  async (req, res) => {
       .sort({ createdAt: -1 })
       .populate('items.item');
 
-    console.log(orders)
+    // console.log(orders)
     res.status(200).json(orders);
   } catch (error) {
     console.error('Error fetching orders:', error);
