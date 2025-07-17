@@ -1,3 +1,6 @@
+// backend/Models/FoodItem.js
+
+
 const mongoose = require('mongoose');
 
 const foodItemSchema = new mongoose.Schema({
