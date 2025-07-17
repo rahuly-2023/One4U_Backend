@@ -11,7 +11,7 @@ getOrders =  async (req, res) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'chirag');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const orders = await Order.find({ user: decoded.userId })
       .sort({ createdAt: -1 })
       .populate('items.item');

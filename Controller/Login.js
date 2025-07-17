@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 // Secret key for JWT (store this safely, e.g., in environment variables)
-const JWT_SECRET = process.env.JWT_SECRET || 'chirag';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const login = async (req, res) => {
   const { email, password } = req.body;
