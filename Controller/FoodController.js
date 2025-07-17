@@ -1,9 +1,14 @@
+// backend/Controller/FoodController.js
+
+
 const FoodCategory = require('../Models/FoodCategory');
 const FoodItem = require('../Models/FoodItem');
 const Order = require('../Models/Order');
 const User = require('../Models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
+require('dotenv').config();
 
 // Get all food categories with their items
 const getMenu = async (req, res) => {
@@ -14,13 +19,101 @@ const getMenu = async (req, res) => {
       match: { isAvailable: true }
     });
     
-    console.log(categories);
+    // console.log(categories);
     res.status(200).json(categories);
   } catch (error) {
     console.error('Error fetching menu:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+
+
+
+
+
+
+
+
+
+// Helper: Generate Gemini prompt
+function generateGeminiPrompt(userName, recentOrders) {
+  const lines = [`Analyze the following food order history of ${userName} and provide a single-sentence tip or insight about their food preferences:`];
+
+  recentOrders.forEach((order, idx) => {
+    const itemList = order.items.map(i => `${i.quantity}x ${i.item.name}`).join(', ');
+    lines.push(`Order ${idx + 1}: ${itemList}`);
+  });
+
+  return lines.join('\n');
+}
+
+// Helper: Call Gemini API
+// async function getGeminiFoodTip(promptText) {
+//   try {
+//     console.log("gemini key ", process.env.GEMINI_API_KEY);
+//     const response = await axios.post(
+//       'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + process.env.GEMINI_API_KEY,
+//       {
+//         contents: [
+//           {
+//             role: "user",
+//             parts: [{ text: promptText }]
+//           }
+//         ]
+//       },
+//       {
+//         headers: { 'Content-Type': 'application/json' }
+//       }
+//     );
+
+
+//     const reply = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+//     return reply.trim();
+//   } catch (err) {
+//     console.error('Gemini API call failed:', err.message);
+//     return '';
+//   }
+// }
+
+
+
+async function getGeminiFoodTip(promptText) {
+  try {
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              { text: promptText }
+            ]
+          }
+        ]
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return text?.trim() || '';
+  } catch (err) {
+    console.error('Gemini API call failed:', err.response?.data || err.message);
+    return '';
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
 
 // Place a new order
 const placeOrder = async (req, res) => {
@@ -61,12 +154,57 @@ const placeOrder = async (req, res) => {
       })
     );
 
+
+
+
+
+
+
+
+    // Get user with recent orders and populate item names
+    const user = await User.findById(tokenPayload.userId).populate({
+      path: 'recentOrders',
+      populate: {
+        path: 'items.item',
+        model: 'FoodItem',
+        select: 'name'
+      }
+    });
+
+    let geminiTip = '';
+    if (user && user.recentOrders?.length > 0) {
+      const prompt = generateGeminiPrompt(user.name, user.recentOrders);
+      geminiTip = await getGeminiFoodTip(prompt);
+      console.log("Promt ", prompt);
+      console.log("Tip ", geminiTip);
+    }
+
+    // const combinedInstructions = [specialInstructions, geminiTip].filter(Boolean).join('\n');
+    const combinedInstructions = JSON.stringify({
+      user: specialInstructions || '',
+      gemini: geminiTip || ''
+    });
+
+    console.log("Combined ", combinedInstructions);
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Create the order
     const order = new Order({
       user: tokenPayload.userId,
       items: itemDetails,
       totalAmount,
-      specialInstructions,
+      specialInstructions: combinedInstructions,
       tableNumber,
       status: 'pending'
     });
@@ -76,8 +214,12 @@ const placeOrder = async (req, res) => {
     const populatedOrder = await Order.findById(order._id)
     .populate('user', 'name email')
     .populate('items.item', 'name price');
+
+    req.adminSockets.forEach(socket => {
+      socket.emit('new-order', populatedOrder);
+    });
     
-    req.io.emit('new-order', populatedOrder);
+    // req.io.emit('new-order', populatedOrder);
 
     // Update user's order history for recommendations
     await User.findByIdAndUpdate(tokenPayload.userId, {
