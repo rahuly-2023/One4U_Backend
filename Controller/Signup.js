@@ -1,3 +1,5 @@
+// backend/Controller/Signup.js
+
 const User = require('../Models/User');
 const bcrypt = require('bcryptjs');
 
@@ -33,5 +35,5 @@ const signup = async (req, res) => {
 };
 
 module.exports = {
-  signup,
+  signup
 };

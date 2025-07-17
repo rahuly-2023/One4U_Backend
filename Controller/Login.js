@@ -1,3 +1,5 @@
+// backend/Controller/Login.js
+
 const User = require('../Models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -34,6 +36,7 @@ const login = async (req, res) => {
     res.status(200).json({ 
       message: 'Login successful', 
       token,
+      user,
       userId: user._id, 
       name: user.name,
     });
@@ -45,5 +48,5 @@ const login = async (req, res) => {
 };
 
 module.exports = {
-  login,
+  login
 };
