@@ -3,6 +3,7 @@
 const User = require('../Models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 // Secret key for JWT (store this safely, e.g., in environment variables)
 const JWT_SECRET = process.env.JWT_SECRET;
